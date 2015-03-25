@@ -168,7 +168,6 @@ InstallMethod(LengthOfGrpWord, "for a GrpWord",
 	w -> Length(w!.word)
 );
 
-
 InstallMethod(IsSquareGrpWord, "for a GrpWord",
 		[IsGrpWord],
 		function(w)
@@ -294,7 +293,7 @@ NormalForm := function(x)
 		return [N[1],N[2]*Hom];
 	fi;
 	if IsOrientedGrpWord(x) then
-		if w[1] = -w[3] and w[1]<0 then
+		if IsInt(w[3]) and w[1] = -w[3] and w[1]<0 then
 			N := NormalForm(x[[4..LengthOfGrpWord(x)]]);
 			return [x[[1..3]]*N[1],N[2]];
 		elif w[1] = -w[3] then
@@ -312,6 +311,157 @@ NormalForm := function(x)
 	fi;
 	Print ("abort here");
 	return [GrpWord([],x!.group),GrpWordHom([],x!.group)];
-;
-	
+end;
+
+NormalForm2:= function(xx)
+	local case10,case11a,case11b,case2a,case2b,vfind,i,j,t,x,vlen,v,w,v1,v2,w1,w2,w11,w12,w21,w22,first,Hom,Hom2,y;
+	xx:= GrpWordReducedForm(xx);
+	w:= xx!.word;
+	if Length(w)<3 then
+		return [xx,GrpWordHom([],xx!.group)];
+	fi;
+	#Functions for Oriented GrpWords:
+	case10 := function(w1,v,w2,x,G)
+		local N,Hom,h,c;
+		N := NormalForm2(GrpWord(Concatenation(w1,w2),G));
+		h := N[1]!.word;
+		if IsInt(h[Length(h)]) then
+			Hom := [];
+			Hom[x] := GrpWord([x],G)*GrpWord([w2])^-1;
+			return [N[1]*GrpWord(Concatenation(h,[-x,v,x]),G),GrpWordHom(Hom)*N[2]];
+		else
+			c:= h[Length(h)];
+			Hom := [];
+			Hom[x] := GrpWord([x,c],G)*GrpWord([w2])^-1;
+			return [N[1][[1..Length(h)-1]]*GrpWord(Concatenation(h,[-x,v,x,c]),G),GrpWordHom(Hom)*N[2]];
+		fi;
+	end;
+	if IsOrientedGrpWord(xx) then
+		#Find x s.t. w=w1 -x v x w2 with |v| minimal
+		t:= rec();
+		for i in w do
+			if IsInt(i) then
+				i:= AbsInt(i);
+				if IsBound(t.(i)) then
+					t.(i) := -t.(i);
+				else
+					t.(i) := 0;
+				fi;
+			fi;
+			for j in RecNames(t) do
+				if t.(j)>=0 then
+					t.(j) := t.(j) +1;
+				fi;
+			od;
+		od;
+		#counting done
+		Print("Counting dict: ",t,"\n");
+		x := 0;
+		vlen := -Length(w);
+		for i in RecNames(t) do
+			if t.(i)>vlen then
+				x := i;
+				vlen := t.(i);
+			fi;
+		od;
+		x := Int(x);
+		Print("Shortest word is of length ",vlen," and surounded by ",String(x),"\n");
+		#Minimal i found;
+		first := true;
+		toInvert := false;
+		for i in [1..Length(w)] do
+			if IsInt(w[i]) and AbsInt(w[i]) = x then
+				if first then
+					if w[i]>0 then
+						toInvert := true;
+					fi;
+					w1 := w{[1..i-1]};
+					first := false;
+					j:= i+1;
+				else 
+					v:= w{[j..i-1]};
+					if i<Length(w) then
+						w2 := w{[i+1..Length(w)]};
+					else
+						w2 := [];
+					fi;
+					break;
+				fi;
+			fi;
+		od;
+		Hom := [];
+		if toInvert then
+			Hom[x] := GrpWord([-x],xx!.group);
+		fi;
+		Hom := GrpWordHom(Hom,xx!.group);
+		Print("Word decomposes to ",[w1,-x,v,x,w2],"\n");
+		#Decomposition done
+		if Length(v)=1 then #Case 1
+			v := v[1];
+			if IsInt(v) then #Case 1.1
+				if v<0 then
+					Hom2 := []:
+					Hom2[-v] := GrpWord([v],xx!.group);
+					Hom := GrpWordHom(Hom2)*Hom;
+					v := -v;
+				fi;
+				i := Position(w1,-v);
+				if not i = fail then #Case 1.1.a
+					w11 := w1{[1..i-1]};
+					w12 := w1{[i+1..Length(w1)]};
+					return case11a(w11,w12,v,w2,x);
+				else #Case 1.1.b
+					i := Position(w2,-v);
+					if i = fail then 
+						Error("Strange Error");
+					fi;
+					w21 := w2{[1..i-1]};
+					w22 := w2{[i+1..Length(w2)]};
+					return case11b(w1,v,w21,w22,x);
+				fi;
+			else #Case 1.0
+				return case10(w1,v,w2,x);
+			fi;
+		else #Case 2
+			y := 0;
+			for i in v do
+			if IsInt(i) then
+				y := i;
+				if i<0 then
+					break
+				fi;
+			fi;
+			od;
+			i := Position(v,y);
+			if y>0 then
+				Hom2 := []:
+				Hom2[y] := GrpWord([-y],xx!.group);
+				Hom := GrpWordHom(Hom2)*Hom;
+				y := -y;
+			fi;
+			y := -y;
+			v1 := v{[1..i-1]};
+			v2 := v{[i+1..Length(v)]};
+			i := Position(w1,y);
+			if not i = fail then #Case 2.a
+				w11 := w1{[1..i-1]};
+				w12 := w1{[i+1..Length(w1)]};
+				N := case11a(w11,Concatenation(v2,v1),x,Concatenation(w12,w2),y);
+				Hom2 := [];
+				Hom2[x] :=GrpWord(v2,xx!.group)^-1*GrpWord(Concatenation([x,y],w12),xx!.group);
+				return [N[1],N[2]*GrpWordHom(Hom2)*Hom];
+			else #Case 2.b
+				i := Position(w2,y);
+				if i = fail then 
+					Error("Strange Error");
+				fi;
+				w21 := w2{[1..i-1]};
+				w22 := w2{[i+1..Length(w2)]};
+				N := case11a(Concatenation(w1,w21),Concatenation(v2,v1),x,w22,y);
+				Hom2 := [];
+				Hom2[x] := GrpWord(v2,xx!.group)^-1*GrpWord([x],xx!.group)*GrpWord(w21,xx!.group)^-1;
+				return [N[1],N[2]*GrpWordHom(Hom2)*Hom];
+			fi;
+		fi; #End Case 2
+	fi; #End Oriented Case	
 end;
