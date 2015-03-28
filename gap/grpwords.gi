@@ -215,10 +215,7 @@ InstallMethod(IsOrientedGrpWord, "for a square GrpWord",
 		for i in w do
 			Val[AbsInt(i)] := Val[AbsInt(i)] + i;
 		od;
-		if not Sum(Val) = 0 then
-			return false;
-		fi;			
-		return true;	
+		return ForAll(Val,x->x=0);
 	end
 );
 
@@ -237,10 +234,12 @@ InstallMethod(GrpWordReducedForm, "for a Grpword",
 				if IsInt(i) then
 					if lastType = 0 and lastUnknown = -i then
 						Unbind(L[Length(L)]);
+						#Print("Remove L[",Length(L),"] Now L:",L,"\n");
+						lastUnknown := 0;
 						change := true;
-					fi;
-					if lastType = 1 or lastUnknown <> -i then
+					elif lastType = 1 or lastUnknown <> -i then
 						Add(L,i);
+						#Print(i,"added\nNow L:",L,"\n");
 						lastType := 0;
 						lastUnknown := i;
 					fi;
@@ -251,12 +250,14 @@ InstallMethod(GrpWordReducedForm, "for a Grpword",
 							change := true;
 						else 
 							Add(L,i);
+						#	Print(i,"added\nNow L:",L,"\n");
 						fi;
 						lastType := 1;
 					fi;
 				fi;
 			od;
 			w := L;
+			#Print("Reducing.. Now ",w,"\n");
 		od;
 		L := w;
 		w := GrpWord(L,x!.group);
@@ -327,9 +328,9 @@ NormalForm2:= function(xx)
 	# w = w11·v⁻·w12·x⁻·v·x·w2
 	case11a := function(w11,w12,v,w2,x,G)
 		local N,Hom,h;
-		#Print("Case 11a:");
-		#View([w11,w12,v,w2,x]);
-		#Print("\n");
+		Print("Case 11a:");
+		View([w11,w12,v,w2,x]);
+		Print("\n");
 		N := NormalForm2(GrpWord(Concatenation(w11,w12,w2),G));
 		Hom := [];
 		h := GrpWord(w11,G);
@@ -340,9 +341,9 @@ NormalForm2:= function(xx)
 	# w = w1·x⁻·v·x·w21·v⁻·w22
 	case11b := function(w1,v,w21,w22,x,G)
 		local N,Hom,h;
-		#Print("Case 11b:");
-		#View([w1,v,w21,w22,x]);
-		#Print("\n");
+		Print("Case 11b:");
+		View([w1,v,w21,w22,x]);
+		Print("\n");
 		N := NormalForm2(GrpWord(Concatenation(w1,w21,w22),G));
 		Hom := [];
 		Hom[x] := GrpWord(Concatenation(w1,w21),G)^-1 *GrpWord(Concatenation([x],w1),G);
@@ -358,15 +359,17 @@ NormalForm2:= function(xx)
 		N := NormalForm2(GrpWord(w2,G));
 		#Check if N start with [y,z]
 		if Length(N[1]!.word)<4 or not IsInt(N[1]!.word[2]) or N[1]!.word[1]=N[1]!.word[2] then
+			Print("End is Ok.. leaving Case 3\n");
 			return [GrpWord([x,x],G)*N[1],N[2]];
 		else
+			Print("w2 contains commutator...\n");
 			y := N[1]!.word[3];
 			z := N[1]!.word[4];
 			Hom := [];
 			Hom[x] := GrpWord([x,y,z],G);
 			Hom[y] := GrpWord([-z,-y,-x,y,z,x,y,z],G);
 			Hom[z] := GrpWord([-z,-y,-x,z],G);
-			N2 := case3(z,N[1][[5..Length(N[1]!.word)]],G);
+			N2 := case3(z,N[1]!.word{[5..Length(N[1]!.word)]},G);
 			return [GrpWord([x,x,y,y],G)*N2[1],GrpWordHom(Hom)*N2[2]*N[2]];
 		fi;
 	end;
@@ -461,7 +464,7 @@ NormalForm2:= function(xx)
 				return [N[1],N[2]*Hom];
 			fi;
 		else #Case 2
-			#Print("Case2.");
+			Print("Case2.");
 			y := 0;
 			for i in v do
 			if IsInt(i) then
@@ -483,7 +486,7 @@ NormalForm2:= function(xx)
 			v2 := v{[i+1..Length(v)]};
 			i := Position(w1,y);
 			if not i = fail then #Case 2.a
-				#Print("a. ");
+				Print("a. ");
 				w11 := w1{[1..i-1]};
 				w12 := w1{[i+1..Length(w1)]};
 				N := case11a(w11,Concatenation(v2,v1),x,Concatenation(w12,w2),y,xx!.group);
@@ -491,7 +494,7 @@ NormalForm2:= function(xx)
 				Hom2[x] :=GrpWord(v2,xx!.group)^-1*GrpWord(Concatenation([x,y],w12),xx!.group);
 				return [N[1],N[2]*GrpWordHom(Hom2)*Hom];
 			else #Case 2.b
-				#Print("b. ");
+				Print("b. ");
 				i := Position(w2,y);
 				if i = fail then 
 					Error("Strange Error");
@@ -534,8 +537,48 @@ NormalForm2:= function(xx)
 		Hom := GrpWordHom(Hom2)*Hom;
 		w2 := v!.word;
 		N := case3(x,Concatenation(w1,w2,w3),xx!.group);
+		Print("Back from Case 3 N[2]!.rules[4] ");
+		rule_pr(N[2]);	
+		Print("\n");
+		Print("Hom: ");
+		rule_pr(Hom);
 		return [N[1],N[2]*Hom];
 	fi; #End Nonoriented Case	
 	Print("Not implemented yet\n");
 	return [];
+end;
+rule_pr := function(grpwh)
+	local N,h,x,y;
+	h:= grpwh!.rules;
+	for x in [1..Length(h)] do
+		if IsBound(h[x]) then
+			Print("[");
+			for y in h[x]!.word do
+				if IsInt(y) then
+					Print(y,",");
+				else 
+					Print("c,");
+				fi;
+			od;
+			Print("],");
+		else 
+			Print(",");
+		fi;
+	od;
+	Print("\n");
+end;
+testfunc := function()
+	local elms,e,L,xn,x;
+	elms := [[1,1],[-1,-1],[1,1,2,2],[2,1,1,2],[2,1,-2,1],[2,-1,-2,-1],[2,-1,2,-1],[-2,-1,-1,2,a],[-2,-1,-1,-2,a],[-1,3,-1,2,3,2],[3,2,1,-3,1,a,2],[-1,-4,3,4,a,-1,2,3,c,2]];
+	L := [];
+	for e in elms do
+		x := GrpWord(e,G);
+		xn := NormalForm2(x);
+		if ImageOfGrpWordHom(xn[2],x) <> xn[1] then
+			Add(L,e);
+		fi;
+	od;
+	Print("Errors happened at L: ");
+	Display(L);
+	Print("\n");
 end;
