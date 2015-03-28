@@ -9,7 +9,7 @@ DeclareOperation("GrpWord", [IsList, IsGroup]);
 DeclareAttribute("UnknownsOfGrpWord",IsGrpWord);
 DeclareAttribute("GrpWordReducedForm",IsGrpWord);
 DeclareAttribute("GrpWordCyclReducedForm",IsGrpWord);
-DeclareAttribute("WordNormalForm", IsGrpWord);
+DeclareAttribute("GrpWordNormalForm", IsGrpWord);
 DeclareAttribute("LengthOfGrpWord",IsGrpWord);
 
 
@@ -21,4 +21,4 @@ DeclareRepresentation("IsGrpWordHomRep",
  IsComponentObjectRep  and IsAttributeStoringRep,
  ["rules"]);
 DeclareOperation("GrpWordHom",[IsList]);
-DeclareOperation("ImageOfGrpWordHom",[IsGrpWordHom,IsGrpWord]);
+peclareOperation("ImageOfGrpWordHom",[IsGrpWordHom,IsGrpWord]);
