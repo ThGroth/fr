@@ -27,7 +27,7 @@ InstallMethod( GrpWordHom, "For a list of lists consisting of images",
 	[IsList],
 	function(L)
 		if Length(L)=0 then
-			Error("The list must contain at least one relation or called with a group as second argument.");
+			Error("The list must contain at least one relation or called with a group or family as second argument.");
 		fi;
 		return Objectify(NewType(FamilyObj(Representative(L)),IsGrpWordHom and IsGrpWordHomRep),
 		rec(rules := L));
@@ -43,6 +43,14 @@ InstallOtherMethod( GrpWordHom, "For a list of lists consisting of images and a 
 		else 
 				fam := NewType(FamilyObj(Representative(L)),IsGrpWordHom and IsGrpWordHomRep);
 		fi;
+		return Objectify(fam,rec(rules := L));
+	end
+);
+InstallOtherMethod( GrpWordHom, "For a list of lists consisting of images and a Family",
+	[IsList,IsFamily],
+	function(L,F)
+		local fam;
+		fam := NewType(F,IsGrpWordHom and IsGrpWordHomRep);
 		return Objectify(fam,rec(rules := L));
 	end
 );
@@ -159,7 +167,7 @@ InstallMethod( \*,   "for two GrpWordHoms",
 					res[i] := x!.rules[i];
 				fi;
 			od;
-			return GrpWordHom(res);
+			return GrpWordHom(res,FamilyObj(x));
     end 
 );
 InstallMethod(OneOp, "for a GrpWordHom",
@@ -286,15 +294,12 @@ InstallMethod(GrpWordCyclReducedForm, "for a Grpword",
 );
 
 NormalForm2:= function(xx)
-	local case10,case11a,case11b,toInvert,vfind,i,j,t,x,vlen,v,w,v1,v2,w1,w2,w11,w12,w21,w22,first,Hom,Hom2,y,N;
+	local case10,case11a,case11b,case3,toInvert,vfind,i,j,t,x,vlen,v,w,v1,v2,w1,w2,w11,w12,w21,w22,w3,first,Hom,Hom2,y,N;
 	Print("Call of NormalForm2¸with");
 	View(xx!.word);
 	Print("\n");
 	xx:= GrpWordReducedForm(xx);
 	w:= xx!.word;
-	if Length(w)<3 then
-		return [xx,GrpWordHom([],xx!.group)];
-	fi;
 	#Functions for Oriented GrpWords:
 	# w = w1·x⁻·v·x·w2
 	case10 := function(w1,v,w2,x,G)
@@ -344,7 +349,31 @@ NormalForm2:= function(xx)
 		Hom[v] := GrpWord(Concatenation(w1,w21),G)^-1 *GrpWord(Concatenation([-v],w1,w21),G);
 		return [GrpWord([-x,-v,x,v],G)*N[1],N[2]*GrpWordHom(Hom)];
 	end;
+	# w = x²·w2
+	case3 := function(x,w2,G)
+		local N,N2,Hom,y,z;
+		Print("Case 3:");
+		View([x,w2]);
+		Print("\n");
+		N := NormalForm2(GrpWord(w2,G));
+		#Check if N start with [y,z]
+		if Length(N[1]!.word)<4 or not IsInt(N[1]!.word[2]) or N[1]!.word[1]=N[1]!.word[2] then
+			return [GrpWord([x,x],G)*N[1],N[2]];
+		else
+			y := N[1]!.word[3];
+			z := N[1]!.word[4];
+			Hom := [];
+			Hom[x] := GrpWord([x,y,z],G);
+			Hom[y] := GrpWord([-z,-y,-x,y,z,x,y,z],G);
+			Hom[z] := GrpWord([-z,-y,-x,z],G);
+			N2 := case3(z,N[1][[5..Length(N[1]!.word)]],G);
+			return [GrpWord([x,x,y,y],G)*N2[1],GrpWordHom(Hom)*N2[2]*N[2]];
+		fi;
+	end;
 	if IsOrientedGrpWord(xx) then
+		if Length(w)<3 then
+			return [xx,GrpWordHom([],xx!.group)];
+		fi;
 		#Print("Oriented");
 		#Find x s.t. w=w1 -x v x w2 with |v| minimal
 		t:= rec();
@@ -475,7 +504,38 @@ NormalForm2:= function(xx)
 				return [N[1],N[2]*GrpWordHom(Hom2)*Hom];
 			fi;
 		fi; #End Case 2
-	fi; #End Oriented Case	
+	else #so not oriented
+		Print("Nonoriented Case:\n");
+		#find x s.t. w = w1·x·w2·x·w3
+		t:= rec();
+		for i in [1..Length(w)] do
+			if IsInt(w[i]) then
+				if IsBound(t.(w[i])) then
+					x:= w[i];
+					w1:= w{[1..t.(w[i])-1]};
+					w2:= w{[t.(w[i])+1..i-1]};
+					w3:= w{[i+1..Length(w)]};
+					break;
+				else        
+					t.(w[i]) := i;
+				fi;
+			fi;
+		od;
+		Hom := [];
+		Print("Found x=",x,"\n");
+		if x<0 then
+			Hom[-x] := GrpWord([x],xx!.group);
+			x := -x;
+		fi;
+		Hom := GrpWordHom(Hom,xx!.group);
+		Hom2 := [];
+		v := GrpWord(w2,xx!.group)^-1;
+		Hom2[x] := GrpWord(w1,xx!.group)^-1 * GrpWord(Concatenation([x],w1),G) *v;
+		Hom := GrpWordHom(Hom2)*Hom;
+		w2 := v!.word;
+		N := case3(x,Concatenation(w1,w2,w3),xx!.group);
+		return [N[1],N[2]*Hom];
+	fi; #End Nonoriented Case	
 	Print("Not implemented yet\n");
 	return [];
 end;
