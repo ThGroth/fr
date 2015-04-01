@@ -71,6 +71,22 @@ InstallOtherMethod( GrpWordHom, "For a list of lists consisting of images and a 
 		return Objectify(fam,rec(rules := L));
 	end
 );
+
+InstallMethod(FRGrpWordLetter, "",
+	function(i,pi,G)
+		local d,L,M;
+		d := Length(AlphabetOfFRSemigroup(G));
+		if i mod (d+1) <> 0 then
+			Error("the first argument is not a valid letter of a Decomposable GrpWord");
+		fi;
+		L = [i+1..i+d];
+		M := Objectify(NewType(FamilyObj(G), IsFRGrpWordLetter and IsFRGrpWordLetterStateRep),
+					rec(states := L,
+							group := w!.group,
+							activity := pi));
+    return M;
+	end;
+);
 InstallMethod( \=,  "for two GrpWordHoms",
 		IsIdenticalObj,
     [ IsGrpWordHom and IsGrpWordHomRep, IsGrpWordHom and IsGrpWordHomRep ],
@@ -101,7 +117,18 @@ InstallMethod( PrintObj,   "for GrpWordHoms)",
 		fi;
   end 
 );
-
+InstallMethod( PrintObj,   "for FRGrpWordLetters)",
+	[ IsGrpWordHom and IsGrpWordHomRep ],
+	function( x )
+		local i, res;
+		Print("<");
+		for i in x!.states do
+			Print(i," ");
+		od;
+		Print(">",x!.activity);
+		fi;
+  end 
+);
 InstallMethod( \=,  "for two GrpWords",
 		IsIdenticalObj,
     [ IsGrpWord and IsGrpWordRep, IsGrpWord and IsGrpWordRep ],
@@ -113,11 +140,27 @@ InstallMethod( \=,  "for two GrpWords",
 		end 
 );
 
+InstallMethod( \=,  "for two FRGrpWordLetters",
+		IsIdenticalObj,
+    [ IsFRGrpWordLetter and IsFRGrpWordLetterStateRep, IsFRGrpWordLetter and IsFRGrpWordLetterStateRep ],
+    function( x, y )
+			return x!.states = y!.states and y!.activity = x!.activity; 
+		end 
+);
+
 InstallMethod( \*,   "for two GrpWords",
 		IsIdenticalObj,
     [ IsGrpWord and IsGrpWordRep, IsGrpWord and IsGrpWordRep ],
     function( x, y )
     	return GrpWord(Concatenation(x!.word,y!.word),x!.group);
+    end 
+);
+
+InstallMethod( \*,   "for two FRGrpWordLetter",
+		IsIdenticalObj,
+	 [ IsFRGrpWordLetter and IsFRGrpWordLetterStateRep, IsFRGrpWordLetter and IsFRGrpWordLetterStateRep ],
+    function( x, y )
+    	#TODO Continue Here!!!!
     end 
 );
 
@@ -572,16 +615,16 @@ InstallMethod(GrpWordNormalForm, "for a Grpword",
 
 InstallMethod(GrpWordDecomposed, "for a Grpword",
 	function(w)
-		local Perm,A,C,i,Var;
+		local Perm,A,C,tau,i,Var;
 		if not IsGrpWordDecomposableRep(w) then
 			w := GrpWordDecomposable(w);
 		fi;
-		A := AlphabetOfFRSemiGroup(w!.group);
+		A := AlphabetOfFRSemigroup(w!.group);
 		Perm := SymmetricGroup(A);
 		C := [];
 		Var := Set(List(UnknownsOfGrpWord(w),AbsInt));
-		for i in Cartesian(Perm,Var)  do
-			
+		for tau in Cartesian(ListWithIdenticalEntries(Length(Var),Perm));  do
+			#
 		od;
 
 		

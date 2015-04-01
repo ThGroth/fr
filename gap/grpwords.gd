@@ -27,3 +27,9 @@ DeclareRepresentation("IsGrpWordHomRep",
  ["rules"]);
 DeclareOperation("GrpWordHom",[IsList]);
 DeclareOperation("ImageOfGrpWordHom",[IsGrpWordHom,IsGrpWord]);
+
+DeclareCategory("IsFRGrpWordLetter", IsMultiplicativeElementWithInverse);
+DeclareRepresentation("IsGrpWordLetterStateRep", 
+ IsComponentObjectRep  and IsAttributeStoringRep,
+ ["states","activity"]);
+DeclareOperation("FRGrpWordLetter", [IsInt, IsPerm,IsFRGroup]);
