@@ -4,7 +4,11 @@ DeclareCategoryCollections("IsGrpWord");
 DeclareRepresentation("IsGrpWordRep",
  IsComponentObjectRep  and IsAttributeStoringRep,
  ["word","group"]);
+DeclareRepresentation("IsGrpWordDecomposableRep",
+	IsGrpWordRep,["word","group","hom"]);
+
 DeclareOperation("GrpWord", [IsList, IsGroup]);
+DeclareOperation("GrpWordDecomposable", [IsGrpWord]);
 
 DeclareAttribute("UnknownsOfGrpWord",IsGrpWord);
 DeclareAttribute("GrpWordReducedForm",IsGrpWord);
@@ -12,6 +16,7 @@ DeclareAttribute("GrpWordCyclReducedForm",IsGrpWord);
 DeclareAttribute("GrpWordNormalForm", IsGrpWord);
 DeclareAttribute("LengthOfGrpWord",IsGrpWord);
 
+DeclareOperation("GrpWordDecomposed",[IsGrpWord]);
 
 DeclareProperty("IsSquareGrpWord", IsGrpWord);
 DeclareProperty("IsOrientedGrpWord", IsSquareGrpWord);
@@ -21,4 +26,4 @@ DeclareRepresentation("IsGrpWordHomRep",
  IsComponentObjectRep  and IsAttributeStoringRep,
  ["rules"]);
 DeclareOperation("GrpWordHom",[IsList]);
-peclareOperation("ImageOfGrpWordHom",[IsGrpWordHom,IsGrpWord]);
+DeclareOperation("ImageOfGrpWordHom",[IsGrpWordHom,IsGrpWord]);

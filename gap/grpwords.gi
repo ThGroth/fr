@@ -15,10 +15,31 @@ InstallMethod(GrpWord, "(GrpWord) for a list of group elements and unknowns",
 				fi;
 			fi;
 		od;
-		#TODO Simplify two group elements next to each other.
 		M := Objectify(NewType(FamilyObj(G), IsGrpWord and IsGrpWordRep),
     rec(word := elms,
        group := G));
+    return M;
+	end
+);
+
+InstallMethod(GrpWordDecomposable, "for a groupWord",
+	[IsGrpWord],
+	function(w)
+	local M,i,d,G,Hom;
+		G := w!.group;
+		if not IsFRGroup(G) then
+			TryNextMethod();
+		fi;
+		d := Length(AlphabetOfFRSemigroup(G));
+		Hom := [];
+		for i in UnknownsOfGrpWord(w) do
+			Hom[AbsInt(i)] := GrpWord([(d+1)*AbsInt(i)],G);
+		od;
+		Hom := GrpWordHom(Hom,G);
+		M := Objectify(NewType(FamilyObj(G), IsGrpWord and IsGrpWordDecomposableRep),
+					rec(word := ImageOfGrpWordHom(Hom,w)!.word,
+							group := w!.group,
+							hom := Hom));
     return M;
 	end
 );
@@ -38,11 +59,7 @@ InstallOtherMethod( GrpWordHom, "For a list of lists consisting of images and a 
 	[IsList,IsGroup],
 	function(L,G)
 		local fam;
-		if Length(L)=0 then
-				fam := NewType(FamilyObj(G),IsGrpWordHom and IsGrpWordHomRep);
-		else 
-				fam := NewType(FamilyObj(Representative(L)),IsGrpWordHom and IsGrpWordHomRep);
-		fi;
+		fam := NewType(FamilyObj(G),IsGrpWordHom and IsGrpWordHomRep);
 		return Objectify(fam,rec(rules := L));
 	end
 );
@@ -553,7 +570,23 @@ InstallMethod(GrpWordNormalForm, "for a Grpword",
 	end
 );
 
+InstallMethod(GrpWordDecomposed, "for a Grpword",
+	function(w)
+		local Perm,A,C,i,Var;
+		if not IsGrpWordDecomposableRep(w) then
+			w := GrpWordDecomposable(w);
+		fi;
+		A := AlphabetOfFRSemiGroup(w!.group);
+		Perm := SymmetricGroup(A);
+		C := [];
+		Var := Set(List(UnknownsOfGrpWord(w),AbsInt));
+		for i in Cartesian(Perm,Var)  do
+			
+		od;
 
+		
+	end;
+);
 rule_pr := function(grpwh)
 	local N,h,x,y;
 	h:= grpwh!.rules;
@@ -580,7 +613,7 @@ testfunc := function()
 	L := [];
 	for e in elms do
 		x := GrpWord(e,G);
-		xn := NormalForm2(x);
+		xn := GrpWordNormalForm(x);
 		if ImageOfGrpWordHom(xn[2],x) <> xn[1] then
 			Add(L,e);
 		fi;
