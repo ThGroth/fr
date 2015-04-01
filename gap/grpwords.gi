@@ -2,7 +2,11 @@
 G := GrigorchukGroup;
 AssignGeneratorVariables(G);
 #x := GrpWord([1,-5,a,5,b,-1,-2,3,a,4,-3,b,-4,c,2],G);
-
+########################################################################################
+####                                                                                ####
+####                              Constructors	                                    ####
+####                                                                                ####
+########################################################################################
 
 InstallMethod(GrpWord, "(GrpWord) for a list of group elements and unknowns",
 	[IsList,IsGroup],
@@ -72,21 +76,36 @@ InstallOtherMethod( GrpWordHom, "For a list of lists consisting of images and a 
 	end
 );
 
-InstallMethod(FRGrpWordLetter, "",
-	function(i,pi,G)
+InstallMethod(FRGrpWord, "For a list of grpwords, a permutation and an FRGroup",
+	[IsList,IsPerm,IsFRGroup],
+	function(L,p,G)
+		local M;
+		M := Objectify(NewType(FamilyObj(G), IsFRGrpWord and IsFRGrpWordStateRep),
+					rec(states := L,
+							group := G,
+							activity := p));
+    return M;	
+	end
+);
+
+InstallMethod(FRGrpWordUnknown, "For an integer, a permutation and an FRGroup",
+	[IsInt, IsPerm, IsFRGroup],
+	function(i,p,G)
 		local d,L,M;
 		d := Length(AlphabetOfFRSemigroup(G));
 		if i mod (d+1) <> 0 then
-			Error("the first argument is not a valid letter of a Decomposable GrpWord");
+			Error("The first Argument must be a valid decomposable variable");
 		fi;
-		L = [i+1..i+d];
-		M := Objectify(NewType(FamilyObj(G), IsFRGrpWordLetter and IsFRGrpWordLetterStateRep),
-					rec(states := L,
-							group := w!.group,
-							activity := pi));
-    return M;
-	end;
+		L :=List([i+1..i+d],x->GrpWord([x],G));
+    return FRGrpWord(L,p,G);
+	end
 );
+
+######################################################################################
+####                                                                              ####
+####                               Standard Methods                               ####
+####                                                                              ####
+######################################################################################
 InstallMethod( \=,  "for two GrpWordHoms",
 		IsIdenticalObj,
     [ IsGrpWordHom and IsGrpWordHomRep, IsGrpWordHom and IsGrpWordHomRep ],
@@ -117,36 +136,32 @@ InstallMethod( PrintObj,   "for GrpWordHoms)",
 		fi;
   end 
 );
-InstallMethod( PrintObj,   "for FRGrpWordLetters)",
-	[ IsGrpWordHom and IsGrpWordHomRep ],
+InstallMethod( PrintObj,   "for FRGrpWords)",
+	[ IsFRGrpWord and IsFRGrpWordStateRep ],
 	function( x )
-		local i, res;
+		local i, res,first;
+		first := true;
 		Print("<");
 		for i in x!.states do
-			Print(i," ");
+			if not first then
+				Print(",");
+			else
+				first := false; fi;
+			Print(i!.word);
 		od;
 		Print(">",x!.activity);
-		fi;
   end 
 );
 InstallMethod( \=,  "for two GrpWords",
 		IsIdenticalObj,
     [ IsGrpWord and IsGrpWordRep, IsGrpWord and IsGrpWordRep ],
     function( x, y )
-			#TODO Ignore different Placeholders
 			x := GrpWordCyclReducedForm(x);
 			y := GrpWordCyclReducedForm(y);
 			return x!.word = y!.word and y!.group = x!.group; 
 		end 
 );
 
-InstallMethod( \=,  "for two FRGrpWordLetters",
-		IsIdenticalObj,
-    [ IsFRGrpWordLetter and IsFRGrpWordLetterStateRep, IsFRGrpWordLetter and IsFRGrpWordLetterStateRep ],
-    function( x, y )
-			return x!.states = y!.states and y!.activity = x!.activity; 
-		end 
-);
 
 InstallMethod( \*,   "for two GrpWords",
 		IsIdenticalObj,
@@ -155,12 +170,32 @@ InstallMethod( \*,   "for two GrpWords",
     	return GrpWord(Concatenation(x!.word,y!.word),x!.group);
     end 
 );
-
-InstallMethod( \*,   "for two FRGrpWordLetter",
+InstallMethod( \*,   "for two GrpWordHoms",
 		IsIdenticalObj,
-	 [ IsFRGrpWordLetter and IsFRGrpWordLetterStateRep, IsFRGrpWordLetter and IsFRGrpWordLetterStateRep ],
+    [ IsGrpWordHom and IsGrpWordHomRep, IsGrpWordHom and IsGrpWordHomRep ],
     function( x, y )
-    	#TODO Continue Here!!!!
+			local res,i;
+			res:= [];
+			for i in [1..Maximum(Length(x!.rules),Length(y!.rules))] do
+				if IsBound(y!.rules[i]) then
+					res[i] := ImageOfGrpWordHom(x,y!.rules[i]);
+				elif IsBound(x!.rules[i]) then
+					res[i] := x!.rules[i];
+				fi;
+			od;
+			return GrpWordHom(res,FamilyObj(x));
+    end 
+);
+InstallMethod( \*,   "for two FRGrpWords",
+		IsIdenticalObj,
+	 [ IsFRGrpWord and IsFRGrpWordStateRep, IsFRGrpWord and IsFRGrpWordStateRep ],
+    function( x, y )
+   		local L,i;
+			L := [];
+			for i in [1..Length(x!.states)] do
+				Add(L,x!.states[i]*y!.states[i^x!.activity]);
+			od;
+			return FRGrpWord(L,x!.activity * y!.activity,y!.group);
     end 
 );
 
@@ -179,8 +214,8 @@ InstallMethod(InverseOp, "for a GrpWord",
 );
 
 InstallMethod(OneOp, "for a GrpWord",
-    [IsGrpWord],
-     x -> GrpWord([],x!.group) 
+	[IsGrpWord],
+	x -> GrpWord([],x!.group) 
 );
 InstallOtherMethod(\[\], "for a GrpWord",
 	[IsGrpWord,IsInt],
@@ -214,25 +249,9 @@ InstallMethod(ImageOfGrpWordHom, "for a GrpWordHom and a GrpWord",
 		return GrpWordReducedForm(GrpWord(res,e!.group));
 	end
 );	
-InstallMethod( \*,   "for two GrpWordHoms",
-		IsIdenticalObj,
-    [ IsGrpWordHom and IsGrpWordHomRep, IsGrpWordHom and IsGrpWordHomRep ],
-    function( x, y )
-			local res,i;
-			res:= [];
-			for i in [1..Maximum(Length(x!.rules),Length(y!.rules))] do
-				if IsBound(y!.rules[i]) then
-					res[i] := ImageOfGrpWordHom(x,y!.rules[i]);
-				elif IsBound(x!.rules[i]) then
-					res[i] := x!.rules[i];
-				fi;
-			od;
-			return GrpWordHom(res,FamilyObj(x));
-    end 
-);
 InstallMethod(OneOp, "for a GrpWordHom",
-    [IsGrpWordHom],
-     x -> GrpWordHom([],x!.group) 
+	[IsGrpWordHom],
+	x -> GrpWordHom([],x!.group) 
 );
 InstallMethod(UnknownsOfGrpWord, "for a GrpWord",
 	[IsGrpWord],
@@ -614,6 +633,7 @@ InstallMethod(GrpWordNormalForm, "for a Grpword",
 );
 
 InstallMethod(GrpWordDecomposed, "for a Grpword",
+	[IsGrpWord],
 	function(w)
 		local Perm,A,C,tau,i,Var;
 		if not IsGrpWordDecomposableRep(w) then
@@ -623,12 +643,12 @@ InstallMethod(GrpWordDecomposed, "for a Grpword",
 		Perm := SymmetricGroup(A);
 		C := [];
 		Var := Set(List(UnknownsOfGrpWord(w),AbsInt));
-		for tau in Cartesian(ListWithIdenticalEntries(Length(Var),Perm));  do
-			#
+		for tau in Cartesian(ListWithIdenticalEntries(Length(Var),Perm))  do
+			#TODO Continue Here....
 		od;
 
 		
-	end;
+	end
 );
 rule_pr := function(grpwh)
 	local N,h,x,y;

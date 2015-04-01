@@ -1,14 +1,51 @@
+###########################################################################
+####                                                                   ####
+####                    Categories and Representations                 ####
+####                                                                   ####
+###########################################################################
 DeclareCategory("IsGrpWord", IsMultiplicativeElementWithInverse);
+DeclareCategory("IsGrpWordHom",IsMultiplicativeElementWithOne);
+DeclareCategory("IsFRGrpWord",IsMultiplicativeElementWithOne);
 
 DeclareCategoryCollections("IsGrpWord");
+
 DeclareRepresentation("IsGrpWordRep",
  IsComponentObjectRep  and IsAttributeStoringRep,
- ["word","group"]);
+ ["word","group"]
+);
 DeclareRepresentation("IsGrpWordDecomposableRep",
-	IsGrpWordRep,["word","group","hom"]);
+	IsGrpWordRep,["word","group","hom"]
+);
+DeclareRepresentation("IsGrpWordHomRep", 
+ IsComponentObjectRep  and IsAttributeStoringRep,
+ ["rules"]
+);
+DeclareRepresentation("IsFRGrpWordStateRep", 
+ IsComponentObjectRep  and IsAttributeStoringRep,
+ ["states","activity"]
+);
+DeclareRepresentation("IsGrpWordStateRep", 
+ IsGrpWordDecomposableRep,
+ ["word","states","activity","hom","group"]
+);
+
+###########################################################################
+####                                                                   ####
+####                         Constructors                              ####
+####                                                                   ####
+###########################################################################
 
 DeclareOperation("GrpWord", [IsList, IsGroup]);
-DeclareOperation("GrpWordDecomposable", [IsGrpWord]);
+DeclareOperation("GrpWordHom",[IsList]);
+DeclareOperation("FRGrpWord",[IsList,IsPerm,IsGroup]);
+DeclareOperation("FRGrpWordUnknown",[IsInt,IsPerm,IsFRGroup]);
+
+
+###########################################################################
+####                                                                   ####
+####                   Attributes and Properties                       ####
+####                                                                   ####
+###########################################################################
 
 DeclareAttribute("UnknownsOfGrpWord",IsGrpWord);
 DeclareAttribute("GrpWordReducedForm",IsGrpWord);
@@ -16,20 +53,18 @@ DeclareAttribute("GrpWordCyclReducedForm",IsGrpWord);
 DeclareAttribute("GrpWordNormalForm", IsGrpWord);
 DeclareAttribute("LengthOfGrpWord",IsGrpWord);
 
-DeclareOperation("GrpWordDecomposed",[IsGrpWord]);
-
 DeclareProperty("IsSquareGrpWord", IsGrpWord);
 DeclareProperty("IsOrientedGrpWord", IsSquareGrpWord);
 
-DeclareCategory("IsGrpWordHom",IsMultiplicativeElementWithOne);
-DeclareRepresentation("IsGrpWordHomRep", 
- IsComponentObjectRep  and IsAttributeStoringRep,
- ["rules"]);
-DeclareOperation("GrpWordHom",[IsList]);
-DeclareOperation("ImageOfGrpWordHom",[IsGrpWordHom,IsGrpWord]);
 
-DeclareCategory("IsFRGrpWordLetter", IsMultiplicativeElementWithInverse);
-DeclareRepresentation("IsGrpWordLetterStateRep", 
- IsComponentObjectRep  and IsAttributeStoringRep,
- ["states","activity"]);
-DeclareOperation("FRGrpWordLetter", [IsInt, IsPerm,IsFRGroup]);
+###########################################################################
+####                                                                   ####
+####                          Operations                               ####
+####                                                                   ####
+###########################################################################
+
+DeclareOperation("GrpWordDecomposable", [IsGrpWord]);
+
+DeclareOperation("GrpWordDecomposed",[IsGrpWord]);
+DeclareOperation("ImageOfGrpWordHom",[IsGrpWordHom,IsGrpWord]);
+DeclareOperation("GrpWordToStates", [IsGrpWord, IsPerm]);
