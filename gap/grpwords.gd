@@ -6,6 +6,7 @@
 DeclareCategory("IsGrpWord", IsMultiplicativeElementWithInverse);
 DeclareCategory("IsGrpWordHom",IsMultiplicativeElementWithOne);
 DeclareCategory("IsFRGrpWord",IsMultiplicativeElementWithOne);
+InstallTrueMethod(IsGrpWord,IsFRGrpord);
 
 DeclareCategoryCollections("IsGrpWord");
 
@@ -50,6 +51,7 @@ DeclareOperation("FRGrpWordUnknown",[IsInt,IsPerm,IsFRGroup]);
 DeclareAttribute("UnknownsOfGrpWord",IsGrpWord);
 DeclareAttribute("GrpWordReducedForm",IsGrpWord);
 DeclareAttribute("GrpWordCyclReducedForm",IsGrpWord);
+DeclareAttribute("GrpWordNormalFormInverseHom", IsGrpWord);
 DeclareAttribute("GrpWordNormalForm", IsGrpWord);
 DeclareAttribute("LengthOfGrpWord",IsGrpWord);
 

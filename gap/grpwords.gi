@@ -96,8 +96,13 @@ InstallMethod(FRGrpWordUnknown, "For an integer, a permutation and an FRGroup",
 		if i mod (d+1) <> 0 then
 			Error("The first Argument must be a valid decomposable variable");
 		fi;
-		L :=List([i+1..i+d],x->GrpWord([x],G));
-    return FRGrpWord(L,p,G);
+		if i>0 then
+			L :=List([i+1..i+d],x->GrpWord([x],G));
+			return FRGrpWord(L,p,G);
+		else
+			L := List([-i+1..-i+d],x->GrpWord([-x],G)); 
+			return FRGrpWord(Permuted(L,p^-1),p^-1,G);
+		fi;
 	end
 );
 
@@ -139,15 +144,24 @@ InstallMethod( PrintObj,   "for GrpWordHoms)",
 InstallMethod( PrintObj,   "for FRGrpWords)",
 	[ IsFRGrpWord and IsFRGrpWordStateRep ],
 	function( x )
-		local i, res,first;
+		local i,j, res,first;
 		first := true;
 		Print("<");
 		for i in x!.states do
 			if not first then
 				Print(",");
 			else
-				first := false; fi;
-			Print(i!.word);
+				first := false;
+			fi;
+			for j in i!.word do
+				if IsInt(j) then
+					Print(j);
+				elif HasName(j) then
+					Print(Name(j));
+				else
+					Print("gc");
+				fi;
+			od;
 		od;
 		Print(">",x!.activity);
   end 
@@ -196,6 +210,29 @@ InstallMethod( \*,   "for two FRGrpWords",
 				Add(L,x!.states[i]*y!.states[i^x!.activity]);
 			od;
 			return FRGrpWord(L,x!.activity * y!.activity,y!.group);
+    end 
+);
+InstallMethod( \*,   "for an FRElement and a FRGrpWord",
+	 [ IsFRElement, IsFRGrpWord and IsFRGrpWordStateRep ],
+    function( x, y )
+   		local L,i;
+			L := DecompositionOfFRElement(x);
+			for i in [1..Length(L[1])] do
+				L[1][i] := GrpWord([L[1][i]],y!.group)*y!.states[L[2][i]];
+			od;
+			return FRGrpWord(L[1],Activity(x) * y!.activity,y!.group);
+    end 
+);
+InstallMethod( \*,   "for an FRGrpWord and an FRElement",
+	 [IsFRGrpWord and IsFRGrpWordStateRep, IsFRElement ],
+    function( x, y )
+   		local L,S,i;
+			L := DecompositionOfFRElement(y);
+			S := [];
+			for i in [1..Length(x!.states)] do
+				Add(S, x!.states[i] * GrpWord([L[1][i^x!.activity]],x!.group));
+			od;
+			return FRGrpWord(S,x!.activity*Activity(y),x!.group);
     end 
 );
 
@@ -298,8 +335,8 @@ InstallMethod(IsOrientedGrpWord, "for a square GrpWord",
 	end
 );
 
-InstallMethod(GrpWordReducedForm, "for a Grpword",
-	[IsGrpWord],
+InstallMethod(GrpWordReducedForm, "for a Grpword in GrpWord representation",
+	[IsGrpWord and IsGrpWordRep],
 	function(x)
 		local i,lastType,lastUnknown,change,w,L;
 		w := x!.word;
@@ -344,6 +381,17 @@ InstallMethod(GrpWordReducedForm, "for a Grpword",
 			IsOrientedGrpWord(w);
 		fi;
 		return w;		
+	end
+);
+InstallMethod(GrpWordReducedForm, "for a Grpword in FRGrpWord representation",
+	[IsGrpWord and IsFRGrpWordStateRep],
+	function(x)
+		local s,L;
+		L := [];
+		for s in x!.states do	
+			Add(L,GrpWordReducedForm(s));
+		od;
+		return FRGrpWord(L,x!.activity,Representative(x!.states)!.group);		
 	end
 );
 InstallMethod(GrpWordCyclReducedForm, "for a Grpword",
@@ -632,10 +680,268 @@ InstallMethod(GrpWordNormalForm, "for a Grpword",
 	end
 );
 
+InstallMethod(GrpWordNormalFormInverseHom, "for a Grpword",
+	[IsGrpWord],
+	function(x)
+		local NormalForm2;
+		NormalForm2:= function(xx)
+			local case10,case11a,case11b,case3,toInvert,vfind,i,j,t,x,vlen,v,w,v1,v2,w1,w2,w11,w12,w21,w22,w3,first,Hom,Hom2,y,N;
+			Print("Call of NormalForm2¸with");
+			View(xx!.word);
+			Print("\n");
+			xx:= GrpWordReducedForm(xx);
+			w:= xx!.word;
+			#Functions for Oriented GrpWords:
+			# w = w1·x⁻·v·x·w2
+			case10 := function(w1,v,w2,x,G)
+				local N,Hom,h,c;
+				#Print("Case 10:");
+				#View([w1,v,w2,x]);
+				#Print("\n");
+				N := NormalForm2(GrpWord(Concatenation(w1,w2),G));
+				h := N[1]!.word;
+				Hom := [];
+				Hom[x] := GrpWord(Concatenation([x],w2),G); #DONE
+				if Length(h)=0 then
+					return [GrpWord([-x,v,x],G),GrpWordHom(Hom)];
+				fi;
+				#Does N end with a constant?
+				if IsInt(h[Length(h)]) then
+					return [N[1]*GrpWord([-x,v,x],G),GrpWordHom(Hom)*N[2]]; #DONE
+				else
+					c:= h[Length(h)];
+					Hom := [];
+					Hom[x] := GrpWord(Concatenation([x],w2,[c^-1]),G); #DONE
+					return [N[1][[1..Length(h)-1]]*GrpWord([-x,v,x,c],G),GrpWordHom(Hom)*N[2]]; #DONE
+				fi;
+			end;
+			# w = w11·v⁻·w12·x⁻·v·x·w2
+			case11a := function(w11,w12,v,w2,x,G)
+				local N,Hom,h;
+				#Print("Case 11a:");
+				#View([w11,w12,v,w2,x]);
+				#Print("\n");
+				N := NormalForm2(GrpWord(Concatenation(w11,w12,w2),G));
+				Hom := [];
+				h := GrpWord(w11,G)^-1;
+				Hom[x] := GrpWord(Concatenation(w11,[x]),G)*GrpWord(w12,G)^-1 * h ; #DONE
+				Hom[v] := GrpWord(Concatenation(w11,[v]),G) *h; #DONE
+				return [GrpWord([-v,-x,v,x],G)*N[1],GrpWordHom(Hom)*N[2]]; #DONE
+			end;
+			# w = w1·x⁻·v·x·w21·v⁻·w22
+			case11b := function(w1,v,w21,w22,x,G)
+				local N,Hom,h;
+				#Print("Case 11b:");
+				#View([w1,v,w21,w22,x]);
+				#Print("\n");
+				N := NormalForm2(GrpWord(Concatenation(w1,w21,w22),G));
+				Hom := [];
+				Hom[x] := GrpWord(Concatenation(w1,w21,[x]),G) *GrpWord(w1,G)^-1;#DONE
+				Hom[v] := GrpWord(Concatenation(w1,w21,[-v]),G) *GrpWord(Concatenation(w1,w21),G)^-1;#DONE
+				return [GrpWord([-x,-v,x,v],G)*N[1],GrpWordHom(Hom)*N[2]];#DONE
+			end;
+			# w = x²·w2
+			case3 := function(x,w2,G)
+				local N,N2,Hom,y,z;
+				#Print("Case 3:");
+				#View([x,w2]);
+				#Print("\n");
+				N := NormalForm2(GrpWord(w2,G));
+				#Check if N start with [y,z]
+				if Length(N[1]!.word)<4 or not IsInt(N[1]!.word[2]) or N[1]!.word[1]=N[1]!.word[2] then
+					#Print("End is Ok.. leaving Case 3\n");
+					return [GrpWord([x,x],G)*N[1],N[2]];
+				else
+					#Print("w2 contains commutator...\n");
+					y := N[1]!.word[3];
+					z := N[1]!.word[4];
+					Hom := [];
+					Hom[x] := GrpWord([x,x,-y,-x],G);#DONE
+					Hom[y] := GrpWord([x,y,-x,-z,-x],G);#DONE
+					Hom[z] := GrpWord([x,z],G);#DONE
+					N2 := case3(z,N[1]!.word{[5..Length(N[1]!.word)]},G);
+					return [GrpWord([x,x,y,y],G)*N2[1],N[2]*N2[2]*GrpWordHom(Hom)];#DONE
+				fi;
+			end;
+			if IsOrientedGrpWord(xx) then
+				if Length(w)<3 then
+					return [xx,GrpWordHom([],xx!.group)];
+				fi;
+				#Print("Oriented");
+				#Find x s.t. w=w1 -x v x w2 with |v| minimal
+				t:= rec();
+				for i in w do
+					if IsInt(i) then
+						i:= AbsInt(i);
+						if IsBound(t.(i)) then
+							t.(i) := -t.(i);
+						else
+							t.(i) := 0;
+						fi;
+					fi;
+					for j in RecNames(t) do
+						if t.(j)>=0 then
+							t.(j) := t.(j) +1;
+						fi;
+					od;
+				od;
+				#counting done
+				#Print("Counting dict: ",t,"\n");
+				x := 0;
+				vlen := -Length(w);
+			for i in RecNames(t) do
+				if t.(i)>vlen then
+					x := i;
+					vlen := t.(i);
+				fi;
+			od;
+			x := Int(x);
+			#Minimal i found;
+			first := true;
+			toInvert := false;
+			for i in [1..Length(w)] do
+				if IsInt(w[i]) and AbsInt(w[i]) = x then
+					if first then
+						if w[i]>0 then
+							toInvert := true;
+						fi;
+						w1 := w{[1..i-1]};
+						first := false;
+						j:= i+1;
+					else 
+						v:= w{[j..i-1]};
+						if i<Length(w) then
+							w2 := w{[i+1..Length(w)]};
+						else
+							w2 := [];
+						fi;
+						break;
+					fi;
+				fi;
+			od;
+			Hom := [];
+			if toInvert then
+				Hom[x] := GrpWord([-x],xx!.group);
+			fi;
+			Hom := GrpWordHom(Hom,xx!.group);
+			#Decomposition done
+			if Length(v)=1 then #Case 1
+				v := v[1];
+				if IsInt(v) then #Case 1.1
+					if v<0 then
+						Hom2 := [];
+						Hom2[-v] := GrpWord([v],xx!.group);#DONE
+						Hom := Hom*GrpWordHom(Hom2);#DONE
+					fi;
+					i := Position(w1,-v);
+					if not i = fail then #Case 1.1.a
+						w11 := w1{[1..i-1]};
+						w12 := w1{[i+1..Length(w1)]};
+						Display(N[2]!.rules[1]!.word);
+						return [N[1],Hom*N[2]];#DONE
+					else #Case 1.1.b
+						i := Position(w2,-v);
+						if i = fail then 
+							Error("Strange Error");
+						fi;
+						w21 := w2{[1..i-1]};
+						w22 := w2{[i+1..Length(w2)]};
+						N:= case11b(w1,AbsInt(v),w21,w22,x,xx!.group);
+						return [N[1],Hom*N[2]];#DONE
+					fi;
+				else #Case 1.0
+					N := case10(w1,v,w2,x,xx!.group);
+					return [N[1],Hom*N[2]];#DONE
+				fi;
+				else #Case 2
+					#Print("Case2.");
+					y := 0;
+					for i in v do
+					if IsInt(i) then
+						y := i;
+						if i<0 then
+							break;
+						fi;
+					fi;
+					od;
+					i := Position(v,y);
+					if y>0 then
+						Hom2 := [];
+						Hom2[y] := GrpWord([-y],xx!.group);
+						Hom := Hom*GrpWordHom(Hom2);#DONE
+						y := -y;
+					fi;
+					y := -y;
+					v1 := v{[1..i-1]};
+					v2 := v{[i+1..Length(v)]};
+					i := Position(w1,y);
+					if not i = fail then #Case 2.a
+						#Print("a. ");
+						w11 := w1{[1..i-1]};
+						w12 := w1{[i+1..Length(w1)]};
+						N := case11a(w11,Concatenation(v2,v1),x,Concatenation(w12,w2),y,xx!.group);
+						Hom2 := [];
+						Hom2[x] :=GrpWord(Concatenation(v2,[x]),xx!.group)*GrpWord(Concatenation([y],w12),xx!.group)^-1;#DONE
+						return [N[1],Hom*GrpWordHom(Hom2)*N[2]];#DONE
+					else #Case 2.b
+						#Print("b. ");
+						i := Position(w2,y);
+						if i = fail then 
+							Error("Strange Error");
+						fi;
+						w21 := w2{[1..i-1]};
+						w22 := w2{[i+1..Length(w2)]};
+						N := case11a(Concatenation(w1,w21),Concatenation(v2,v1),x,w22,y,xx!.group);
+						Hom2 := [];
+						Hom2[x] := GrpWord(Concatenation(v2,[x],w21),xx!.group); #DONE
+						return [N[1],Hom*GrpWordHom(Hom2)*N[2]];#DONE
+					fi;
+				fi; #End Case 2
+				else #so not oriented
+					#Print("Nonoriented Case:\n");
+					#find x s.t. w = w1·x·w2·x·w3
+					t:= rec();
+					for i in [1..Length(w)] do
+						if IsInt(w[i]) then
+						if IsBound(t.(w[i])) then
+							x:= w[i];
+							w1:= w{[1..t.(w[i])-1]};
+							w2:= w{[t.(w[i])+1..i-1]};
+						w3:= w{[i+1..Length(w)]};
+						break;
+						else        
+							t.(w[i]) := i;
+						fi;
+					fi;
+				od;
+				Hom := [];
+				if x<0 then
+					Hom[-x] := GrpWord([x],xx!.group);
+					x := -x;
+				fi;
+				Hom := GrpWordHom(Hom,xx!.group);
+				Hom2 := [];
+				Hom2[x] := GrpWord(Concatenation(w1,[x],w2),xx!.group) * GrpWord(w1,G)^-1;#DONE
+				Hom := Hom*GrpWordHom(Hom2);#DONE
+				w2 := GrpWord(w2,G)^-1;
+				w2 := w2!.word;
+				N := case3(x,Concatenation(w1,w2,w3),xx!.group);
+				return [N[1],Hom*N[2]];#DONE
+			fi; #End Nonoriented Case	
+			Print("Not implemented yet\n");
+			return [];
+		end;
+		if IsSquareGrpWord(x) then
+			return NormalForm2(x);
+		else
+			TryNextMethod();
+		fi;
+	end
+);
 InstallMethod(GrpWordDecomposed, "for a Grpword",
 	[IsGrpWord],
 	function(w)
-		local Perm,A,C,tau,i,Var;
+		local Perm,A,C,tau,i,Var,L,v;
 		if not IsGrpWordDecomposableRep(w) then
 			w := GrpWordDecomposable(w);
 		fi;
@@ -644,10 +950,17 @@ InstallMethod(GrpWordDecomposed, "for a Grpword",
 		C := [];
 		Var := Set(List(UnknownsOfGrpWord(w),AbsInt));
 		for tau in Cartesian(ListWithIdenticalEntries(Length(Var),Perm))  do
-			#TODO Continue Here....
+			L := [];
+			v := One(w!.group);
+			for i in w!.word do
+				if IsInt(i) then
+					i := FRGrpWordUnknown(i,tau[Position(Var,AbsInt(i))],w!.group);
+				fi;
+				v := v *i;
+			od;
+			Add(C,[GrpWordReducedForm(v),tau]);
 		od;
-
-		
+		return [C,w!.hom];
 	end
 );
 rule_pr := function(grpwh)
@@ -672,7 +985,7 @@ rule_pr := function(grpwh)
 end;
 testfunc := function()
 	local elms,e,L,xn,x;
-	elms := [[1,1],[-1,-1],[1,1,2,2],[2,1,1,2],[2,1,-2,1],[2,-1,-2,-1],[2,-1,2,-1],[-2,-1,-1,2,a],[-2,-1,-1,-2,a],[-1,3,-1,2,3,2],[3,2,1,-3,1,a,2],[-1,-4,3,4,a,-1,2,3,c,2]];
+	elms := [[1,1],[-1,-1],[1,1,2,2],[2,1,1,2],[2,1,-2,1],[2,-1,-2,-1],[2,-1,2,-1],[-2,-1,-1,2,a],[-2,-1,-1,-2,a],[-1,3,-1,2,3,2],[3,2,1,-3,1,a,2],[-1,-4,3,4,a,-1,2,3,c,2],[1,-5,a,5,b,-1,-2,3,a,4,-3,b,-4,c,2]];
 	L := [];
 	for e in elms do
 		x := GrpWord(e,G);
@@ -684,4 +997,16 @@ testfunc := function()
 	Print("Errors happened at L: ");
 	Display(L);
 	Print("\n");
+	L := [];
+	for e in elms do
+		x := GrpWord(e,G);
+		xn := GrpWordNormalFormInverseHom(x);
+		if ImageOfGrpWordHom(xn[2],xn[1]) <> x then
+			Add(L,e);
+		fi;
+	od;
+	Print("Errors happened at L: ");
+	Display(L);
+	Print("\n");
+
 end;
