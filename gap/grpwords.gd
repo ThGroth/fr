@@ -6,7 +6,7 @@
 DeclareCategory("IsGrpWord", IsMultiplicativeElementWithInverse);
 DeclareCategory("IsGrpWordHom",IsMultiplicativeElementWithOne);
 DeclareCategory("IsFRGrpWord",IsMultiplicativeElementWithOne);
-InstallTrueMethod(IsGrpWord,IsFRGrpord);
+InstallTrueMethod(IsGrpWord,IsFRGrpWord);
 
 DeclareCategoryCollections("IsGrpWord");
 

@@ -29,21 +29,23 @@ InstallMethod(GrpWord, "(GrpWord) for a list of group elements and unknowns",
 InstallMethod(GrpWordDecomposable, "for a groupWord",
 	[IsGrpWord],
 	function(w)
-	local M,i,d,G,Hom;
+	local M,i,d,G,Hom,Hom_inv;
 		G := w!.group;
 		if not IsFRGroup(G) then
 			TryNextMethod();
 		fi;
 		d := Length(AlphabetOfFRSemigroup(G));
 		Hom := [];
+		Hom_inv := [];
 		for i in UnknownsOfGrpWord(w) do
+			Hom_inv[(d+1)*AbsInt(i)] := GrpWord([AbsInt(i)],G);
 			Hom[AbsInt(i)] := GrpWord([(d+1)*AbsInt(i)],G);
 		od;
 		Hom := GrpWordHom(Hom,G);
 		M := Objectify(NewType(FamilyObj(G), IsGrpWord and IsGrpWordDecomposableRep),
 					rec(word := ImageOfGrpWordHom(Hom,w)!.word,
 							group := w!.group,
-							hom := Hom));
+							hom := Hom_inv));
     return M;
 	end
 );
@@ -420,11 +422,10 @@ InstallMethod(GrpWordCyclReducedForm, "for a Grpword",
 		return x;		
 	end
 );
-
 InstallMethod(GrpWordNormalForm, "for a Grpword",
 	[IsGrpWord],
 	function(x)
-		local NormalForm2;
+		local NormalUnknowns,NormalForm2,N2,N;
 		NormalForm2:= function(xx)
 			local case10,case11a,case11b,case3,toInvert,vfind,i,j,t,x,vlen,v,w,v1,v2,w1,w2,w11,w12,w21,w22,w3,first,Hom,Hom2,y,N;
 			Print("Call of NormalForm2¸with");
@@ -578,7 +579,8 @@ InstallMethod(GrpWordNormalForm, "for a Grpword",
 					if not i = fail then #Case 1.1.a
 						w11 := w1{[1..i-1]};
 						w12 := w1{[i+1..Length(w1)]};
-						Display(N[2]!.rules[1]!.word);
+						N := case11a(w11,w12,v,w2,x,xx!.group);
+						#Display(N[2]!.rules[1]!.word);
 						return [N[1],N[2]*Hom];
 					else #Case 1.1.b
 						i := Position(w2,-v);
@@ -672,18 +674,41 @@ InstallMethod(GrpWordNormalForm, "for a Grpword",
 			Print("Not implemented yet\n");
 			return [];
 		end;
+		NormalUnknowns := function(N)
+			local w,i,L,Hom,cur;
+			Hom := [];
+			cur := 0;
+			L := [];
+			w := [];
+			for i in N!.word do
+				if IsInt(i) then
+					if IsBound(L[AbsInt(i)]) then
+						Add(w,SignInt(i)*L[AbsInt(i)]);
+					else
+						cur := cur +1;
+						L[AbsInt(i)] := cur;
+						Hom[AbsInt(i)] := GrpWord([cur],N!.group);
+						Add(w,SignInt(i)*cur);
+					fi;
+				else
+					Add(w,i);
+				fi;
+			od;
+			return [GrpWord(w,N!.group),GrpWordHom(Hom,N!.group)];
+		end;
 		if IsSquareGrpWord(x) then
-			return NormalForm2(x);
+			N := NormalForm2(x);
+			N2 :=NormalUnknowns(N[1]);
+			return [N2[1],N2[2]*N[2]];
 		else
 			TryNextMethod();
 		fi;
 	end
 );
-
 InstallMethod(GrpWordNormalFormInverseHom, "for a Grpword",
 	[IsGrpWord],
 	function(x)
-		local NormalForm2;
+		local NormalUnknowns,NormalForm2,N2,N;
 		NormalForm2:= function(xx)
 			local case10,case11a,case11b,case3,toInvert,vfind,i,j,t,x,vlen,v,w,v1,v2,w1,w2,w11,w12,w21,w22,w3,first,Hom,Hom2,y,N;
 			Print("Call of NormalForm2¸with");
@@ -837,7 +862,8 @@ InstallMethod(GrpWordNormalFormInverseHom, "for a Grpword",
 					if not i = fail then #Case 1.1.a
 						w11 := w1{[1..i-1]};
 						w12 := w1{[i+1..Length(w1)]};
-						Display(N[2]!.rules[1]!.word);
+						N := case11a(w11,w12,v,w2,x,xx!.group);
+						#Display(N[2]!.rules[1]!.word);
 						return [N[1],Hom*N[2]];#DONE
 					else #Case 1.1.b
 						i := Position(w2,-v);
@@ -931,8 +957,32 @@ InstallMethod(GrpWordNormalFormInverseHom, "for a Grpword",
 			Print("Not implemented yet\n");
 			return [];
 		end;
+		NormalUnknowns := function(N)
+		local w,i,L,Hom,cur;
+			Hom := [];
+			cur := 0;
+			L := [];
+			w := [];
+			for i in N!.word do
+				if IsInt(i) then
+					if IsBound(L[AbsInt(i)]) then
+						Add(w,SignInt(i)*L[AbsInt(i)]);
+					else
+						cur := cur +1;
+						L[AbsInt(i)] := cur;
+						Hom[cur] := GrpWord([AbsInt(i)],N!.group);
+						Add(w,SignInt(i)*cur);
+					fi;
+				else
+					Add(w,i);
+				fi;
+			od;
+			return [GrpWord(w,N!.group),GrpWordHom(Hom,N!.group)];
+		end;
 		if IsSquareGrpWord(x) then
-			return NormalForm2(x);
+			N := NormalForm2(x);
+			N2 :=NormalUnknowns(N[1]);
+			return [N2[1],N[2]*N2[2]];
 		else
 			TryNextMethod();
 		fi;
@@ -985,7 +1035,7 @@ rule_pr := function(grpwh)
 end;
 testfunc := function()
 	local elms,e,L,xn,x;
-	elms := [[1,1],[-1,-1],[1,1,2,2],[2,1,1,2],[2,1,-2,1],[2,-1,-2,-1],[2,-1,2,-1],[-2,-1,-1,2,a],[-2,-1,-1,-2,a],[-1,3,-1,2,3,2],[3,2,1,-3,1,a,2],[-1,-4,3,4,a,-1,2,3,c,2],[1,-5,a,5,b,-1,-2,3,a,4,-3,b,-4,c,2]];
+	elms := [[1,1],[-1,-1],[1,1,2,2],[-2,-1,2,1],[-1,-2,1,2],[2,1,1,2],[2,1,-2,1],[2,-1,-2,-1],[2,-1,2,-1],[-2,-1,-1,2,a],[-2,-1,-1,-2,a],[-1,3,-1,2,3,2],[3,2,1,-3,1,a,2],[-1,-4,3,4,a,-1,2,3,c,2],[1,-5,a,5,b,-1,-2,3,a,4,-3,b,-4,c,2]];
 	L := [];
 	for e in elms do
 		x := GrpWord(e,G);
