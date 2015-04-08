@@ -55,6 +55,7 @@ DeclareAttribute("GrpWordNormalFormInverseHom", IsGrpWord);
 DeclareAttribute("GrpWordNormalForm", IsGrpWord);
 DeclareAttribute("LengthOfGrpWord",IsGrpWord);
 
+DeclareProperty("IsPermGrpWord",IsGrpWord);
 DeclareProperty("IsSquareGrpWord", IsGrpWord);
 DeclareProperty("IsOrientedGrpWord", IsSquareGrpWord);
 
@@ -67,6 +68,10 @@ DeclareProperty("IsOrientedGrpWord", IsSquareGrpWord);
 
 DeclareOperation("GrpWordDecomposable", [IsGrpWord]);
 
+DeclareOperation("GrpWordAsElement",[IsGrpWord]);
+DeclareOperation("GrpWordHomCompose",[IsGrpWordHom,IsList,IsGroup]);
 DeclareOperation("GrpWordDecomposed",[IsGrpWord]);
 DeclareOperation("ImageOfGrpWordHom",[IsGrpWordHom,IsGrpWord]);
 DeclareOperation("GrpWordToStates", [IsGrpWord, IsPerm]);
+
+DeclareOperation("GrpWordSolve",[IsGrpWord]);

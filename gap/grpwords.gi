@@ -12,16 +12,19 @@ InstallMethod(GrpWord, "(GrpWord) for a list of group elements and unknowns",
 	[IsList,IsGroup],
 	function(elms,G)
 	local M,i;
-		for i in elms do
-			if not IsInt(i) then
-				if not i in G then
-					Error(i," must be an element of ", G);
-				fi;
-			fi;
-		od;
+		#for i in elms do
+			#if not IsInt(i) then
+				#if not i in G then
+				#	Error(i," must be an element of ", G);
+				#fi;
+			#fi;
+		#od;
 		M := Objectify(NewType(FamilyObj(G), IsGrpWord and IsGrpWordRep),
     rec(word := elms,
        group := G));
+		if IsPermGroup(G) then
+			SetIsPermGrpWord(M,true);
+		fi;
     return M;
 	end
 );
@@ -42,10 +45,11 @@ InstallMethod(GrpWordDecomposable, "for a groupWord",
 			Hom[AbsInt(i)] := GrpWord([(d+1)*AbsInt(i)],G);
 		od;
 		Hom := GrpWordHom(Hom,G);
+		Hom_inv := GrpWordHom(Hom_inv,G);
 		M := Objectify(NewType(FamilyObj(G), IsGrpWord and IsGrpWordDecomposableRep),
 					rec(word := ImageOfGrpWordHom(Hom,w)!.word,
 							group := w!.group,
-							hom := Hom_inv));
+							hom := Hom));
     return M;
 	end
 );
@@ -239,7 +243,7 @@ InstallMethod( \*,   "for an FRGrpWord and an FRElement",
 );
 
 InstallMethod(InverseOp, "for a GrpWord",
-	[IsGrpWord],
+	[IsGrpWord and IsGrpWordRep],
 	function(x)
 		local f;
 		f := function(y) 
@@ -253,23 +257,37 @@ InstallMethod(InverseOp, "for a GrpWord",
 );
 
 InstallMethod(OneOp, "for a GrpWord",
-	[IsGrpWord],
+	[IsGrpWord and IsGrpWordRep],
 	x -> GrpWord([],x!.group) 
 );
 InstallOtherMethod(\[\], "for a GrpWord",
-	[IsGrpWord,IsInt],
+	[IsGrpWord and IsGrpWordRep,IsInt],
 	function(w,i) 
 		return GrpWord([w!.word[i]],w!.group);
 	end);
 
 InstallOtherMethod(\[\], "for a GrpWord",
-	[IsGrpWord,IsList],
+	[IsGrpWord and IsGrpWordRep,IsList],
 	function(w,i) 
 		return GrpWord(w!.word{i},w!.group);
 	end);
+InstallMethod(GrpWordAsElement, "for a GrpWord",
+	[IsGrpWord and IsGrpWordRep],
+	function(w)
+		w := GrpWordReducedForm(w);
+		if Length(w!.word) = 0 then
+			return One(w!.group);
+		elif Length(w!.word) = 1 and not IsInt(w!.word[1]) then
+			return w!.word[1];
+		else
+			Error("This GroupWord still contains Unknowns");
+		fi;
+	end
+);
+
 
 InstallMethod(ImageOfGrpWordHom, "for a GrpWordHom and a GrpWord",
-	[IsGrpWordHom,IsGrpWord],
+	[IsGrpWordHom,IsGrpWord and IsGrpWordRep],
 	function(H,e)
 		local res,x,h;
 		res:=[];
@@ -293,14 +311,16 @@ InstallMethod(OneOp, "for a GrpWordHom",
 	x -> GrpWordHom([],x!.group) 
 );
 InstallMethod(UnknownsOfGrpWord, "for a GrpWord",
-	[IsGrpWord],
+	[IsGrpWord and IsGrpWordRep],
 	w -> Filtered(w!.word,IsInt)
 );
 InstallMethod(LengthOfGrpWord, "for a GrpWord",
-	[IsGrpWord],
+	[IsGrpWord and IsGrpWordRep],
 	w -> Length(w!.word)
 );
-
+InstallMethod(IsPermGrpWord,"for a GrpWord",
+	[IsGrpWord and IsGrpWordRep],
+	x->IsPermGroup(x!.group));
 InstallMethod(IsSquareGrpWord, "for a GrpWord",
 		[IsGrpWord],
 		function(w)
@@ -1013,6 +1033,126 @@ InstallMethod(GrpWordDecomposed, "for a Grpword",
 		return [C,w!.hom];
 	end
 );
+InstallMethod(GrpWordHomCompose, "for a List of GrpWordHom and a list of permutation and a group",
+	[IsGrpWordHom,IsList,IsGroup],
+	function(H,L,G)
+		local d,Hom,i,j,elm;
+		d := Length(AlphabetOfFRSemigroup(G));
+		Hom := [];
+		for i in [1..Length(L)] do
+			elm := [];
+			for j in [1..d] do
+				Add(elm,GrpWordAsElement(H!.rules[i*d+j]));
+			od;
+			Hom[i*d] := GrpWord([MEALY_FROM_STATES@(elm,L[i])],G);
+		od;
+		return GrpWordHom(Hom,G);
+	end
+);
+Uniquify := function(W)
+	local L,K,j,i,k,x,w,Hom;
+	K := [];
+	while true do
+		L := [];
+		x := 0;
+		for i in [1..Length(W)] do
+			for j in Set(List(UnknownsOfGrpWord(W[i]),AbsInt)) do 
+				if IsBound(L[j]) then
+					x := j; #All indices in W[j] have j as common variable
+					break;
+				else
+					L[j]:=i;
+				fi;
+			od;
+			if x <> 0 then
+				break;
+			fi;
+		od;
+		if x = 0 then
+			return [W,GrpWordHom(K,W[i]!.group)];
+		fi;
+		#bring W[L[x][1]] in form x = w
+		k := Position(W[i]!.word,x);
+		j := -1;
+		if k = fail then
+			k := Position(W[i]!.word,-x);
+			j:=1;
+		fi;
+		w :=(W[i][[k+1..Length(W[i]!.word)]] * W[i][[1..k-1]])^j;
+		K[x] := w ;
+		Hom := [];
+		Hom[x] := w;
+		Hom:=GrpWordHom(Hom);
+		#Apply Hom on all entries of W
+		W := List(W,x->ImageOfGrpWordHom(Hom,x));
+	od;
+end;
+#Get GrpWord in S_n
+Corresponding_Perm_word := function(w)
+	local v;
+	v := List(w!.word,function(i) if not IsInt(i) then i:= Activity(i); fi; return i; end);
+	return GrpWord(v,SymmetricGroup(AlphabetOfFRSemigroup(w!.group)));
+end;
+#Solve equations in S_n
+InstallMethod(GrpWordSolve, "for a PermGroupWord",
+	[IsPermGrpWord],
+	function(w)
+		local Var, i, N,p,q,v,Hom,Sol;
+		N := GrpWordNormalForm(w);
+		Var := Set(List(UnknownsOfGrpWord(N[1]),AbsInt));
+		Sol := [];		
+		for p in Cartesian(ListWithIdenticalEntries(Length(Var),w!.group)) do
+			Print("Check ",p,"\n");
+			Hom := GrpWordHom(List(p,x->GrpWord([x],w!.group)),w!.group);
+			v:= ImageOfGrpWordHom(Hom,N[1]);
+			Print("Results in ",v!.word,"\n");
+			q:=[];
+			if IsOne(v) then
+				Add(Sol,Hom*N[2]);
+			fi;
+		od;
+		return Sol;
+	end
+);
+InstallMethod(GrpWordSolve, "For a FRGroupWord",
+	[IsGrpWord],
+	function(w)
+		local Var,v,i,j,k,N,Hom,Dec,Perms,Hom2,U,S,compl;
+		if not IsFRGroup(w!.group) then
+			TryNextMethod();
+		fi;
+			G := w!.group;
+			N := GrpWordNormalForm(w);
+			Var := Set(List(UnknownsOfGrpWord(N[1]),AbsInt));
+			Hom := GrpWordHom(ListWithIdenticalEntries(Length(Var),OneOp(w)),G);
+			if IsOne(ImageOfGrpWordHom(Hom,N[1])) then
+				return [Hom*N[2]];
+			fi;
+			#Perms := GrpWordSolve(Corresponding_Perm_word(N[1]));
+			Dec := GrpWordDecomposed(N[1]); #TODO Replace with smaller set!.
+			for w in Dec[1] do #Solve one of these
+				Hom := GrpWordHom(List(w[2],x->GrpWord([x],SymmetricGroup(AlphabetOfFRSemigroup(G)))));
+				if IsOne(ImageOfGrpWordHom(Hom,Corresponding_Perm_word(N[1]))) then
+					U := Uniquify(w[1]!.states); 
+					Hom2 := U[2];
+					compl := true;
+					for v in U[1] do#Solve all of these
+						S := GrpWordSolve(v);
+						if Length(S) = 0 then
+							compl := false;
+							break;
+						else
+							Hom2 := S[1]*Hom2;
+						fi;
+					od;
+					if compl then
+						return GrpWordHomCompose(Hom2,w[2],G)*Dec[2]*N[2];
+					fi;
+				fi;
+			od;
+			return[];
+	end
+);
 rule_pr := function(grpwh)
 	local N,h,x,y;
 	h:= grpwh!.rules;
@@ -1022,8 +1162,9 @@ rule_pr := function(grpwh)
 			for y in h[x]!.word do
 				if IsInt(y) then
 					Print(y,",");
-				else 
-					Print("c,");
+				else
+					Print(y,",");
+					#Print("c,");
 				fi;
 			od;
 			Print("],");
