@@ -117,6 +117,26 @@ InstallMethod(FRGrpWordUnknown, "For an integer, a permutation and an FRGroup",
 ####                               Standard Methods                               ####
 ####                                                                              ####
 ######################################################################################
+Namecount := 0;
+ToString := function(L)
+	local S,l;
+	S:="[";
+	if Length(L)=0 then
+		return "[]";
+	fi;
+	for l in L do
+		if Length(String(l))<5 then
+			S:=Concatenation(S,String(l),",");
+		elif HasName(l) then
+			S:=Concatenation(S,Name(l),",");
+		else
+			SetName(l,Concatenation("c_",String(Namecount)));
+			Namecount := Namecount +1;
+			S:=Concatenation(S,Name(l),",");
+		fi;
+	od;
+	return Concatenation(S{[1..Length(S)-1]},"]");
+end;
 InstallMethod( \=,  "for two GrpWordHoms",
 		IsIdenticalObj,
     [ IsGrpWordHom and IsGrpWordHomRep, IsGrpWordHom and IsGrpWordHomRep ],
@@ -448,9 +468,7 @@ InstallMethod(GrpWordNormalForm, "for a Grpword",
 		local NormalUnknowns,NormalForm2,N2,N;
 		NormalForm2:= function(xx)
 			local case10,case11a,case11b,case3,toInvert,vfind,i,j,t,x,vlen,v,w,v1,v2,w1,w2,w11,w12,w21,w22,w3,first,Hom,Hom2,y,N;
-			Print("Call of NormalForm2¸with");
-			View(xx!.word);
-			Print("\n");
+			Info(InfoFRGW,3,"Call of NormalForm2¸with",xx!.word);
 			xx:= GrpWordReducedForm(xx);
 			w:= xx!.word;
 			#Functions for Oriented GrpWords:
@@ -1036,15 +1054,18 @@ InstallMethod(GrpWordDecomposed, "for a Grpword",
 InstallMethod(GrpWordHomCompose, "for a List of GrpWordHom and a list of permutation and a group",
 	[IsGrpWordHom,IsList,IsGroup],
 	function(H,L,G)
-		local d,Hom,i,j,elm;
+		local d,Hom,i,j,elm,I;
+
 		d := Length(AlphabetOfFRSemigroup(G));
 		Hom := [];
+		I := Concatenation(List([1..Length(L)],x->[x*(d+1)+1..x*(d+1)+d]));
+		H := CleanSolution(H,GrpWord(I,G));
 		for i in [1..Length(L)] do
 			elm := [];
 			for j in [1..d] do
-				Add(elm,GrpWordAsElement(H!.rules[i*d+j]));
+				Add(elm,GrpWordAsElement(H!.rules[i*(d+1)+j]));
 			od;
-			Hom[i*d] := GrpWord([MEALY_FROM_STATES@(elm,L[i])],G);
+			Hom[i*(d+1)] := GrpWord([MEALY_FROM_STATES@(elm,L[i])],G);
 		od;
 		return GrpWordHom(Hom,G);
 	end
@@ -1114,30 +1135,67 @@ InstallMethod(GrpWordSolve, "for a PermGroupWord",
 		return Sol;
 	end
 );
+CleanSolution := function(H,w)
+	local Var,Hom,i,j;
+	Var := Set(List(UnknownsOfGrpWord(w),AbsInt));
+	Hom := [];
+	#Free Variale can be set to One
+	for i in Var do
+		if not IsBound(H!.rules[i]) then
+			Hom[i]:= OneOp(w);
+		fi;
+	od;
+	Hom := GrpWordHom(Hom,w!.group);
+	H:= Hom * H;
+	#Remove other entries
+	Hom := [];
+	for i in [1..Length(H!.rules)] do
+		if IsBound(H!.rules[i]) and not i in Var then
+			Unbind(H!.rules[i]);
+		fi;
+	od;
+	return H;
+end;
 InstallMethod(GrpWordSolve, "For a FRGroupWord",
 	[IsGrpWord],
 	function(w)
-		local Var,v,i,j,k,N,Hom,Dec,Perms,Hom2,U,S,compl;
-		if not IsFRGroup(w!.group) then
-			TryNextMethod();
-		fi;
+		local Var,v,i,j,k,N,Hom,Dec,Perms,Hom2,U,S,compl,ww;
+			if not HasFullSCData(w!.group) then
+				TryNextMethod();
+			fi;
+			if not FullSCFilter(w!.group) = IsFinitaryFRElement then
+				TryNextMethod();
+			fi;
 			G := w!.group;
 			N := GrpWordNormalForm(w);
+			ww := w;
+			Info(InfoFRGW,2,"Unnormalized ",ToString(w!.word));
+			Info(InfoFRGW,2,"Call ",ToString(N[1]!.word));
 			Var := Set(List(UnknownsOfGrpWord(N[1]),AbsInt));
 			Hom := GrpWordHom(ListWithIdenticalEntries(Length(Var),OneOp(w)),G);
 			if IsOne(ImageOfGrpWordHom(Hom,N[1])) then
-				return [Hom*N[2]];
+				Info(InfoFRGW,2,"Call ",ToString(N[1]!.word)," Solution found");
+				return [CleanSolution(Hom*N[2],w)];
 			fi;
 			#Perms := GrpWordSolve(Corresponding_Perm_word(N[1]));
 			Dec := GrpWordDecomposed(N[1]); #TODO Replace with smaller set!.
 			for w in Dec[1] do #Solve one of these
 				Hom := GrpWordHom(List(w[2],x->GrpWord([x],SymmetricGroup(AlphabetOfFRSemigroup(G)))));
 				if IsOne(ImageOfGrpWordHom(Hom,Corresponding_Perm_word(N[1]))) then
+					Print("Solve System: ",w[1]);
 					U := Uniquify(w[1]!.states); 
+					Print("Simplified to", U,"\n");
 					Hom2 := U[2];
 					compl := true;
+				Info(InfoFRGW,2,"Call ",ToString(N[1]!.word)," Try with perm. ",ToString(w[2]));
 					for v in U[1] do#Solve all of these
 						S := GrpWordSolve(v);
+						Print("Solution for ",ToString(v!.word),":");
+						rule_pr(S[1]);
+						Print("\n");
+						if not IsOne(ImageOfGrpWordHom(S[1],v)) then
+							Error("Not real Solution");
+						fi;
 						if Length(S) = 0 then
 							compl := false;
 							break;
@@ -1146,11 +1204,12 @@ InstallMethod(GrpWordSolve, "For a FRGroupWord",
 						fi;
 					od;
 					if compl then
-						return GrpWordHomCompose(Hom2,w[2],G)*Dec[2]*N[2];
+						return [CleanSolution(GrpWordHomCompose(Hom2,w[2],G)*Dec[2]*N[2],ww)];
 					fi;
 				fi;
 			od;
-			return[];
+			Info(InfoFRGW,2,"Call ",ToString(N[1]!.word)," No Solution!");
+			return [];
 	end
 );
 rule_pr := function(grpwh)
@@ -1163,8 +1222,8 @@ rule_pr := function(grpwh)
 				if IsInt(y) then
 					Print(y,",");
 				else
-					Print(y,",");
-					#Print("c,");
+					#Print(y,",");
+					Print("c,");
 				fi;
 			od;
 			Print("],");

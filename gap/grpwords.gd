@@ -75,3 +75,12 @@ DeclareOperation("ImageOfGrpWordHom",[IsGrpWordHom,IsGrpWord]);
 DeclareOperation("GrpWordToStates", [IsGrpWord, IsPerm]);
 
 DeclareOperation("GrpWordSolve",[IsGrpWord]);
+
+
+###########################################################################
+####                                                                   ####
+####                             Info                                  ####
+####                                                                   ####
+###########################################################################
+InfoFRGW := NewInfoClass("InfoFRGW");
+SetInfoLevel(InfoFRGW,1);
