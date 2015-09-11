@@ -83,7 +83,7 @@ InstallOtherMethod( GrpWordHom, "For a list of lists consisting of images and a 
 );
 
 InstallMethod(FRGrpWord, "For a list of grpwords, a permutation and an FRGroup",
-	[IsList,IsPerm,IsFRGroup],
+	[IsList,IsPerm,IsGroup],
 	function(L,p,G)
 		local M;
 		M := Objectify(NewType(FamilyObj(G), IsFRGrpWord and IsFRGrpWordStateRep),
@@ -204,7 +204,6 @@ InstallMethod( \=,  "for two GrpWords",
 
 
 InstallMethod( \*,   "for two GrpWords",
-		IsIdenticalObj,
     [ IsGrpWord and IsGrpWordRep, IsGrpWord and IsGrpWordRep ],
     function( x, y )
     	return GrpWord(Concatenation(x!.word,y!.word),x!.group);
@@ -227,13 +226,12 @@ InstallMethod( \*,   "for two GrpWordHoms",
     end 
 );
 InstallMethod( \*,   "for two FRGrpWords",
-		IsIdenticalObj,
 	 [ IsFRGrpWord and IsFRGrpWordStateRep, IsFRGrpWord and IsFRGrpWordStateRep ],
     function( x, y )
    		local L,i;
 			L := [];
 			for i in [1..Length(x!.states)] do
-				Add(L,x!.states[i]*y!.states[i^x!.activity]);
+				Add(L,x!.states[i]*y!.states[i^(x!.activity^-1)]);
 			od;
 			return FRGrpWord(L,x!.activity * y!.activity,y!.group);
     end 
@@ -617,7 +615,7 @@ InstallMethod(GrpWordNormalForm, "for a Grpword",
 					if not i = fail then #Case 1.1.a
 						w11 := w1{[1..i-1]};
 						w12 := w1{[i+1..Length(w1)]};
-						N := case11a(w11,w12,v,w2,x,xx!.group);
+						N := case11a(w11,w12,AbsInt(v),w2,x,xx!.group);
 						#Display(N[2]!.rules[1]!.word);
 						return [N[1],N[2]*Hom];
 					else #Case 1.1.b
@@ -634,62 +632,62 @@ InstallMethod(GrpWordNormalForm, "for a Grpword",
 					N := case10(w1,v,w2,x,xx!.group);
 					return [N[1],N[2]*Hom];
 				fi;
-				else #Case 2
-					#Print("Case2.");
-					y := 0;
-					for i in v do
+			else #Case 2
+				#Print("Case2.");
+				y := 0;
+				for i in v do
 					if IsInt(i) then
 						y := i;
 						if i<0 then
 							break;
 						fi;
 					fi;
-					od;
-					i := Position(v,y);
-					if y>0 then
-						Hom2 := [];
-						Hom2[y] := GrpWord([-y],xx!.group);
-						Hom := GrpWordHom(Hom2)*Hom;
-						y := -y;
+				od;
+				i := Position(v,y);
+				if y>0 then
+					Hom2 := [];
+					Hom2[y] := GrpWord([-y],xx!.group);
+					Hom := GrpWordHom(Hom2)*Hom;
+					#y := -y;
+				fi;
+				y := -y;
+				v1 := v{[1..i-1]};
+				v2 := v{[i+1..Length(v)]};
+				i := Position(w1,y);
+				if not i = fail then #Case 2.a
+					#Print("a. ");
+					w11 := w1{[1..i-1]};
+					w12 := w1{[i+1..Length(w1)]};
+					N := case11a(w11,Concatenation(v2,v1),x,Concatenation(w12,w2),AbsInt(y),xx!.group);
+					Hom2 := [];
+					Hom2[x] :=GrpWord(v2,xx!.group)^-1*GrpWord(Concatenation([x,AbsInt(y)],w12),xx!.group);
+					return [N[1],N[2]*GrpWordHom(Hom2)*Hom];
+				else #Case 2.b
+					#Print("b. ");
+					i := Position(w2,y);
+					if i = fail then 
+						Error("Strange Error");
 					fi;
-					y := -y;
-					v1 := v{[1..i-1]};
-					v2 := v{[i+1..Length(v)]};
-					i := Position(w1,y);
-					if not i = fail then #Case 2.a
-						#Print("a. ");
-						w11 := w1{[1..i-1]};
-						w12 := w1{[i+1..Length(w1)]};
-						N := case11a(w11,Concatenation(v2,v1),x,Concatenation(w12,w2),y,xx!.group);
-						Hom2 := [];
-						Hom2[x] :=GrpWord(v2,xx!.group)^-1*GrpWord(Concatenation([x,y],w12),xx!.group);
-						return [N[1],N[2]*GrpWordHom(Hom2)*Hom];
-					else #Case 2.b
-						#Print("b. ");
-						i := Position(w2,y);
-						if i = fail then 
-							Error("Strange Error");
-						fi;
-						w21 := w2{[1..i-1]};
-						w22 := w2{[i+1..Length(w2)]};
-						N := case11a(Concatenation(w1,w21),Concatenation(v2,v1),x,w22,y,xx!.group);
-						Hom2 := [];
-						Hom2[x] := GrpWord(v2,xx!.group)^-1*GrpWord([x],xx!.group)*GrpWord(w21,xx!.group)^-1;
-						return [N[1],N[2]*GrpWordHom(Hom2)*Hom];
-					fi;
-				fi; #End Case 2
-				else #so not oriented
-					#Print("Nonoriented Case:\n");
-					#find x s.t. w = w1·x·w2·x·w3
-					t:= rec();
-					for i in [1..Length(w)] do
-						if IsInt(w[i]) then
+					w21 := w2{[1..i-1]};
+					w22 := w2{[i+1..Length(w2)]};
+					N := case11a(Concatenation(w1,w21),Concatenation(v2,v1),x,w22,AbsInt(y),xx!.group);
+					Hom2 := [];
+					Hom2[x] := GrpWord(v2,xx!.group)^-1*GrpWord([x],xx!.group)*GrpWord(w21,xx!.group)^-1;
+					return [N[1],N[2]*GrpWordHom(Hom2)*Hom];
+				fi;
+			fi; #End Case 2
+			else #so not oriented
+				#Print("Nonoriented Case:\n");
+				#find x s.t. w = w1·x·w2·x·w3
+				t:= rec();
+				for i in [1..Length(w)] do
+					if IsInt(w[i]) then
 						if IsBound(t.(w[i])) then
 							x:= w[i];
 							w1:= w{[1..t.(w[i])-1]};
 							w2:= w{[t.(w[i])+1..i-1]};
-						w3:= w{[i+1..Length(w)]};
-						break;
+							w3:= w{[i+1..Length(w)]};
+							break;
 						else        
 							t.(w[i]) := i;
 						fi;
@@ -749,9 +747,7 @@ InstallMethod(GrpWordNormalFormInverseHom, "for a Grpword",
 		local NormalUnknowns,NormalForm2,N2,N;
 		NormalForm2:= function(xx)
 			local case10,case11a,case11b,case3,toInvert,vfind,i,j,t,x,vlen,v,w,v1,v2,w1,w2,w11,w12,w21,w22,w3,first,Hom,Hom2,y,N;
-			Print("Call of NormalForm2¸with");
-			View(xx!.word);
-			Print("\n");
+			Info(InfoFRGW,3,"Call of NormalForm2¸with",xx!.word);
 			xx:= GrpWordReducedForm(xx);
 			w:= xx!.word;
 			#Functions for Oriented GrpWords:
@@ -900,7 +896,7 @@ InstallMethod(GrpWordNormalFormInverseHom, "for a Grpword",
 					if not i = fail then #Case 1.1.a
 						w11 := w1{[1..i-1]};
 						w12 := w1{[i+1..Length(w1)]};
-						N := case11a(w11,w12,v,w2,x,xx!.group);
+						N := case11a(w11,w12,AbsInt(v),w2,x,xx!.group);
 						#Display(N[2]!.rules[1]!.word);
 						return [N[1],Hom*N[2]];#DONE
 					else #Case 1.1.b
@@ -933,7 +929,7 @@ InstallMethod(GrpWordNormalFormInverseHom, "for a Grpword",
 						Hom2 := [];
 						Hom2[y] := GrpWord([-y],xx!.group);
 						Hom := Hom*GrpWordHom(Hom2);#DONE
-						y := -y;
+						#y := -y;
 					fi;
 					y := -y;
 					v1 := v{[1..i-1]};
@@ -943,9 +939,9 @@ InstallMethod(GrpWordNormalFormInverseHom, "for a Grpword",
 						#Print("a. ");
 						w11 := w1{[1..i-1]};
 						w12 := w1{[i+1..Length(w1)]};
-						N := case11a(w11,Concatenation(v2,v1),x,Concatenation(w12,w2),y,xx!.group);
+						N := case11a(w11,Concatenation(v2,v1),x,Concatenation(w12,w2),AbsInt(y),xx!.group);
 						Hom2 := [];
-						Hom2[x] :=GrpWord(Concatenation(v2,[x]),xx!.group)*GrpWord(Concatenation([y],w12),xx!.group)^-1;#DONE
+						Hom2[x] :=GrpWord(Concatenation(v2,[x]),xx!.group)*GrpWord(Concatenation([AbsInt(y)],w12),xx!.group)^-1;#DONE
 						return [N[1],Hom*GrpWordHom(Hom2)*N[2]];#DONE
 					else #Case 2.b
 						#Print("b. ");
@@ -955,7 +951,7 @@ InstallMethod(GrpWordNormalFormInverseHom, "for a Grpword",
 						fi;
 						w21 := w2{[1..i-1]};
 						w22 := w2{[i+1..Length(w2)]};
-						N := case11a(Concatenation(w1,w21),Concatenation(v2,v1),x,w22,y,xx!.group);
+						N := case11a(Concatenation(w1,w21),Concatenation(v2,v1),x,w22,AbsInt(y),xx!.group);
 						Hom2 := [];
 						Hom2[x] := GrpWord(Concatenation(v2,[x],w21),xx!.group); #DONE
 						return [N[1],Hom*GrpWordHom(Hom2)*N[2]];#DONE
@@ -1051,6 +1047,27 @@ InstallMethod(GrpWordDecomposed, "for a Grpword",
 		return [C,w!.hom];
 	end
 );
+CleanSolution := function(H,w)
+	local Var,Hom,i,j;
+	Var := Set(List(UnknownsOfGrpWord(w),AbsInt));
+	Hom := [];
+	#Free Variale can be set to One
+	for i in Var do
+		if not IsBound(H!.rules[i]) then
+			Hom[i]:= OneOp(w);
+		fi;
+	od;
+	Hom := GrpWordHom(Hom,w!.group);
+	H:= Hom * H;
+	#Remove other entries
+	Hom := [];
+	for i in [1..Length(H!.rules)] do
+		if IsBound(H!.rules[i]) and not i in Var then
+			Unbind(H!.rules[i]);
+		fi;
+	od;
+	return H;
+end;
 InstallMethod(GrpWordHomCompose, "for a List of GrpWordHom and a list of permutation and a group",
 	[IsGrpWordHom,IsList,IsGroup],
 	function(H,L,G)
@@ -1123,10 +1140,10 @@ InstallMethod(GrpWordSolve, "for a PermGroupWord",
 		Var := Set(List(UnknownsOfGrpWord(N[1]),AbsInt));
 		Sol := [];		
 		for p in Cartesian(ListWithIdenticalEntries(Length(Var),w!.group)) do
-			Print("Check ",p,"\n");
+			#Print("Check ",p,"\n");
 			Hom := GrpWordHom(List(p,x->GrpWord([x],w!.group)),w!.group);
 			v:= ImageOfGrpWordHom(Hom,N[1]);
-			Print("Results in ",v!.word,"\n");
+			#Print("Results in ",v!.word,"\n");
 			q:=[];
 			if IsOne(v) then
 				Add(Sol,Hom*N[2]);
@@ -1135,26 +1152,26 @@ InstallMethod(GrpWordSolve, "for a PermGroupWord",
 		return Sol;
 	end
 );
-CleanSolution := function(H,w)
-	local Var,Hom,i,j;
-	Var := Set(List(UnknownsOfGrpWord(w),AbsInt));
-	Hom := [];
-	#Free Variale can be set to One
-	for i in Var do
-		if not IsBound(H!.rules[i]) then
-			Hom[i]:= OneOp(w);
+rule_pr := function(grpwh)
+	local N,h,x,y;
+	h:= grpwh!.rules;
+	for x in [1..Length(h)] do
+		if IsBound(h[x]) then
+			Print("[");
+			for y in h[x]!.word do
+				if IsInt(y) then
+					Print(y,",");
+				else
+					#Print(y,",");
+					Print("c,");
+				fi;
+			od;
+			Print("],");
+		else 
+			Print(",");
 		fi;
 	od;
-	Hom := GrpWordHom(Hom,w!.group);
-	H:= Hom * H;
-	#Remove other entries
-	Hom := [];
-	for i in [1..Length(H!.rules)] do
-		if IsBound(H!.rules[i]) and not i in Var then
-			Unbind(H!.rules[i]);
-		fi;
-	od;
-	return H;
+	Print("\n");
 end;
 InstallMethod(GrpWordSolve, "For a FRGroupWord",
 	[IsGrpWord],
@@ -1212,35 +1229,31 @@ InstallMethod(GrpWordSolve, "For a FRGroupWord",
 			return [];
 	end
 );
-rule_pr := function(grpwh)
-	local N,h,x,y;
-	h:= grpwh!.rules;
-	for x in [1..Length(h)] do
-		if IsBound(h[x]) then
-			Print("[");
-			for y in h[x]!.word do
-				if IsInt(y) then
-					Print(y,",");
-				else
-					#Print(y,",");
-					Print("c,");
-				fi;
-			od;
-			Print("],");
-		else 
-			Print(",");
-		fi;
-	od;
-	Print("\n");
-end;
 testfunc := function()
-	local elms,e,L,xn,x;
+	local elms,e,L,xn,x,F,a,b,c,d,f1,f2,f3,others;
+	G := GrigorchukGroup;
+	a := G.1;
+	b := G.2;
+	c := G.3;
+	d := G.4;
 	elms := [[1,1],[-1,-1],[1,1,2,2],[-2,-1,2,1],[-1,-2,1,2],[2,1,1,2],[2,1,-2,1],[2,-1,-2,-1],[2,-1,2,-1],[-2,-1,-1,2,a],[-2,-1,-1,-2,a],[-1,3,-1,2,3,2],[3,2,1,-3,1,a,2],[-1,-4,3,4,a,-1,2,3,c,2],[1,-5,a,5,b,-1,-2,3,a,4,-3,b,-4,c,2]];
+	F := FreeGroup(5);
+	f1 := F.1;
+	f2 := F.2;
+	f3 := F.3;
+	others := [GrpWord([-9,f1,-10,f2,9,10,f3],F)];
 	L := [];
+
 	for e in elms do
 		x := GrpWord(e,G);
 		xn := GrpWordNormalForm(x);
 		if ImageOfGrpWordHom(xn[2],x) <> xn[1] then
+			Add(L,e);
+		fi;
+	od;
+	for e in others do
+		xn := GrpWordNormalForm(e);
+		if ImageOfGrpWordHom(xn[2],e) <> xn[1] then
 			Add(L,e);
 		fi;
 	od;
@@ -1252,6 +1265,12 @@ testfunc := function()
 		x := GrpWord(e,G);
 		xn := GrpWordNormalFormInverseHom(x);
 		if ImageOfGrpWordHom(xn[2],xn[1]) <> x then
+			Add(L,e);
+		fi;
+	od;
+	for e in others do
+		xn := GrpWordNormalFormInverseHom(e);
+		if ImageOfGrpWordHom(xn[2],xn[1]) <> e then
 			Add(L,e);
 		fi;
 	od;
